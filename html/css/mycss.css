@@ -1,0 +1,21 @@
+.infopaneltext{ font-family: Verdana, Arial, sans-serif; font-size: 10px; font-weight:bold; }
+.red span{
+	font-weight:bold;
+	color:red;
+}
+.green span{
+	font-weight:bold;
+	color: lime;
+}
+.yellow span{
+	font-weight:bold;
+	color:yellow;
+}
+/*farbe für scaleline von OL*/
+.olControlNoSelect{
+	color:black;
+}
+#btnControl .ui-button-text-only {
+	font-size: 10px;
+	font-weight:bold;
+}

@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<!-- Always force latest IE rendering engine (even in intranet) & Chrome Frame
+		Remove this if you use the .htaccess -->
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+		<title>show data rtklib cleanmap</title>
+		<meta name="description" content="" />
+		<meta name="author" content="Hannes" />
+		<meta name="viewport" content="width=device-width; initial-scale=1.0" />
+		<!-- Replace favicon.ico & apple-touch-icon.png in the root of your domain and delete these references -->
+		<link rel="shortcut icon" href="/favicon.ico" />
+		<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+		<!-- 	jquery ui zeugs	 -->
+		<link rel="stylesheet" href="./css/dark-hive/jquery-ui-1.8.18.custom.css" />
+		<link rel="stylesheet" href="./css/mycss.css" />
+		<link type="text/css" href="./js/jquery.fancybox.css" rel="stylesheet" media="screen" />
+		<script type="text/javascript" src="./js/jquery-1.7.1.min.js"></script>
+		<script type="text/javascript" src="./js/jquery-ui-1.8.18.custom.min.js"></script>
+		<!-- 		<script type="text/javascript" src="./js/jquery.fancybox.pack.js"></script>
+		<script type="text/javascript" src="./js/jquery.easing.1.3.js"></script> -->
+		<!-- ####################################### -->
+		<script type="text/javascript" src="proj4js.js"></script>
+		<script type="text/javascript" src="/lib/OpenLayers.js"></script>
+		<script src="/socket.io/socket.io.js"></script>
+	</head>
+	<body>
+		<div id="info" class="ui-widget-content ui-corner-bottom ui-corner-top" >
+			<table width="100%">
+				<colgroup>
+					<col width="30%"></col>
+					<col width="50%"></col>
+					<col width="20%"></col>
+				</colgroup>
+				<tr>
+					<td>
+						<span id="lat" class="infopaneltext"></span>
+						<span>&nbsp</span>
+						<span id="lon"class="infopaneltext"></span>
+						<br>
+						<span id="status"class="infopaneltext"></span>
+						<span>&nbsp</span>
+						<span id="sat"class="infopaneltext"></span>
+						<div id="columnWitdth"class="infopaneltext">
+							<span>Distanz Linie: </span>
+							<span id='distCont' class='infopaneltext' style="font-size:30px"></span>
+							<br>
+							<span>Steuerrichtung: </span>
+							<span id='steer' class='infopaneltext'></span>
+							<br>
+							<span class="infopaneltext">Linie verschieben:</span>
+							<input id='valueMoveSpacing' type='text' value='10' style='width:30px'/>
+							<span class="infopaneltext">mm</span>
+							<button id='btnMoveLineLeft' class="fg-button ui-state-default ui-priority-primary">
+								<
+							</button>
+							<button id='btnMoveLineRight' class="fg-button ui-state-default ui-priority-primary">
+								>
+							</button>
+
+						</div>
+					</td>
+					<td>
+						<div id='btnControl'>
+							<div id='hydroControl'>
+								<button id='btnResetGyro' class="fg-button ui-state-default ui-priority-primary">
+									Reset Gyro
+								</button>
+								<button id='btnSteerSingleRight' >Hydro LINKS</button>
+								<button id='btnSteerSingleLeft' >Hydro RECHTS</button>
+								<button id='btnSteerStop' >Hydro STOP</button>
+							</div>
+							<div id='line'>
+								<button id='btnLineEndGPS' c>EndPunkt GPS</button>
+								<button id='btnLineStartGPS' >StartPunkt GPS</button>
+								<button id='btnClearLine' >Linie löschen</button>
+								<button id='btnEnDisBtn' >Punkt OFF</button>
+								<br>
+								<input id='valueSpacing' type='text' value='130' style='width:30px'/>
+								<span class="infopaneltext">cm</span>
+								<button id='btnNextLineLeft' class="fg-button ui-state-default ui-priority-primary">
+									<
+								</button>
+								<button id='btnNextLineRight' class="fg-button ui-state-default ui-priority-primary">
+									>
+								</button>
+						</div>		
+						</div>					
+					</td>
+					<td>
+<!-- 						<span class="infopaneltext">Linien-Rotation</span>
+						<div id="sliderRotation"></div> -->
+						<span class="infopaneltext">Relais Geschwindigkeit:</span>
+						<span id='sliderSteerSpeedVal' class="infopaneltext">0</span>
+						<span class="infopaneltext">s</span>
+						<div id="sliderSteerSpeed"></div>
+						<span class="infopaneltext">Hydraulik Dauer:</span>
+						<span id='sliderHydroDurationVal' class="infopaneltext">0</span>
+						<span class="infopaneltext">s</span>
+						<div id="sliderHydroDuration"></div>
+						<span class="infopaneltext">Mittelstreifenbreite:</span>
+						<span id='sliderMiddleVal' class="infopaneltext">0</span>
+						<span class="infopaneltext">mm</span>
+						<div id="sliderMiddle"></div>
+						<span class="infopaneltext">Aussenstreifen:</span>
+						<span id='sliderOutVal' class="infopaneltext">0</span>
+						<span class="infopaneltext">mm</span>
+						<div id="sliderOut"></div>
+					</td>
+				</tr>
+			</table>
+		</div>
+		<div id="header" class="ui-widget-header ui-corner-top">
+			<div id="mapcontrols" class="fg-buttonset fg-buttonset-single ui-helper-clearfix">
+				<button name='navigate'class="fg-button ui-state-default ui-state-active ui-priority-primary ui-corner-left" >
+					Navigieren
+				</button>
+				<button name='line' class="fg-button ui-state-default ui-priority-primary">
+					Strecke messen
+				</button>
+				<button name='polygon' class="fg-button ui-state-default ui-priority-primary">
+					Fläche messen
+				</button>
+				<button id='center' class="fg-button ui-state-default ui-priority-primary">
+					Center fix
+				</button>
+				<button id='startAutoSteer' class="fg-button ui-state-default ui-priority-primary">
+					autom. Lenkung
+				</button>
+				<!-- 			<a href="#" name='zoomin' class="fg-button ui-state-default fg-button-icon-solo" title="Zoom in"><span class="ui-icon ui-icon-circle-zoomin"></span> Zoom in</a>
+				<a href="#" name='zoomout' class="fg-button ui-state-default fg-button-icon-solo ui-corner-right" title="Zoom out"><span class="ui-icon ui-icon-circle-zoomout"></span> Zoom out</a> -->
+			</div>
+		</div>
+		<div id="content" class="ui-widget-content ui-corner-bottom">
+			<div id="map" style="width: 400; height: 400px; background-color: white"></div>
+			<div id="coords"></div>
+			<div id="mouseCoord"></div>
+			<div id="output"></div>
+		</div>
+		<script type="text/javascript">
+			// var HOST = '192.168.1.101';
+			var HOST = 'localhost';
+			OpenLayers.IMAGE_RELOAD_ATTEMPTS = 5;
+			var map;
+			var map_controls = [new OpenLayers.Control.MouseToolbar(), //brauche ich damit ich per doppelklick zoomen kann
+			new OpenLayers.Control.LayerSwitcher(),
+			new OpenLayers.Control.PanZoomBar({}),
+			// new OpenLayers.Control.Graticule({
+			// 	layerName: 'Grid',
+			// 	intervals: [50,15,4,1,.5,.1,.01,.001,.0001,.00001,.000001,.0000001,.00000001,.000000001],
+			// 	labelFormat: 'dms'
+			// }),
+			new OpenLayers.Control.ScaleLine({
+				geodesic : false,
+				topOutUnits : 'm',
+				topInUnits : 'cm',
+				bottomOutUnits : 'km',
+				bottomInUnits : 'm'
+			}) //,	new OpenLayers.Control.EditingToolBar()
+			];
+
+			var compass_vector_layer = null;
+			var position_vector_layer = null;
+			var currentDriveLine_vector_layer=null;
+			var line_grid_layer = '';
+			var setCenter = false;
+			var initCenter = true;
+			var centerPoint;
+			var steerSave = 25;
+			var steerSaveOut = 300;
+			var startAutoSteer = false;
+
+			function init() {
+				map = new OpenLayers.Map({
+					div : "map",
+					projection : new OpenLayers.Projection('EPSG:31287'),
+					units: 'm',
+					displayProjection : new OpenLayers.Projection("EPSG:4326"),
+					// projection : new OpenLayers.Projection('EPSG:4326'),
+					// displayProjection : new OpenLayers.Projection("EPSG:4326"),
+					controls : map_controls,
+					// maxResolution : 360/512,
+					maxResolution : 10,
+					// allOverlays: true,
+					maxExtent: new OpenLayers.Bounds(107778.5323, 286080.6331, 694883.9348, 575953.6150) //siehe http://spatialreference.org/ref/epsg/31287/
+
+					// maxExtent : new OpenLayers.Bounds(9.5300, 46.4100, 17.1700, 49.0200)
+					// maxExtent : new OpenLayers.Bounds(1, 1, 1000000, 700000)
+				});
+
+				// OpenLayers.Util.onImageLoadErrorColor = "transparent";
+    //    			map = new OpenLayers.Map('map', {
+    //       			maxResolution: 'auto',
+    //       			projection : new OpenLayers.Projection('EPSG:4326'),
+    //       			displayProjection : new OpenLayers.Projection('EPSG:31287'),
+    //       			maxExtent: new OpenLayers.Bounds(9.35244127564, 46.0866464868, 17.3044666684,49.2084373698)
+    //     		});
+
+
+
+
+
+
+
+				// give the features some style
+				var styles = new OpenLayers.StyleMap({
+					"default" : {
+						strokeWidth : 2
+					},
+					"select" : {
+						strokeColor : "#0099cc",
+						strokeWidth : 4
+					}
+				});
+				// add rules from the above lookup table
+				styles.addUniqueValueRules("default", "RP_TYPE", {
+					10 : {
+						strokeColor : "#000000",
+						strokeWidth : 2
+					},
+					12 : {
+						strokeColor : "#222222",
+						strokeWidth : 2
+					},
+					14 : {
+						strokeColor : "#444444",
+						strokeWidth : 2
+					},
+					16 : {
+						strokeColor : "#666666",
+						strokeWidth : 2
+					},
+					18 : {
+						strokeColor : "#888888",
+						strokeWidth : 2
+					},
+					19 : {
+						strokeColor : "#666666",
+						strokeWidth : 1
+					}
+				});
+
+
+				var position_vector_style_normal = new OpenLayers.Style({
+					fillColor : '#2E9AFE',
+					fillOpacity : 0.4,
+					strokeColor : '#2E9AFE',
+					strokeWidth : 5,
+					pointRadius : 2
+				});
+				var position_vector_style_temp = new OpenLayers.Style({
+					fillColor : '${statusFillColor}',
+					fillOpacity : 0.4,
+					strokeColor : '${statusStrokeColor}',
+					strokeWidth : 1,
+					pointRadius : 3
+				});
+				var position_vector_style_map = new OpenLayers.StyleMap({
+					'default' : position_vector_style_normal,
+					'temporary' : position_vector_style_temp
+				});
+				position_vector_layer = new OpenLayers.Layer.Vector("Position", {
+					styleMap : position_vector_style_map,
+					isBaseLayer : false
+				});
+				// ------------------------------------------------------------------------------------------
+				var line_grid_style_normal = new OpenLayers.Style({
+					fillColor : '#DF7401',
+					fillOpacity : 0.4,
+					strokeColor : '#DF7401',
+					strokeWidth : 1,
+					pointRadius : 2
+				});
+				var line_grid_vector_style_map = new OpenLayers.StyleMap({
+					'default' : line_grid_style_normal
+				});
+				line_grid_layer = new OpenLayers.Layer.Vector("Line", {
+					styleMap : line_grid_vector_style_map
+					// dx : 0.000001,
+					// dy : 0.000001
+				});
+				// ------------------------------------------------------------------------------------------
+				// map.addLayer(compass_vector_layer);
+				wmsLayer = new OpenLayers.Layer.WMS("Karte Österreich", "http://"+HOST+":8080/service", {
+					layers : 'ortho',
+					isBaseLayer: false,
+					format : 'image/jpeg' //jpeg besser für rasterdaten
+				}, {
+					singleTile : false,
+					buffer : 1,
+					ratio : 1
+				});
+
+				var compass_style = new OpenLayers.Style({
+					strokeColor : '#DF0101',
+					strokeWidth : 1.5
+				});
+				var compass_vector_style_map = new OpenLayers.StyleMap({
+					'default' : compass_style
+				});
+				compass_vector_layer = new OpenLayers.Layer.Vector("Kompass", {
+					styleMap: compass_vector_style_map
+				});
+				var base_vector_layer = new OpenLayers.Layer.Vector("Base", {
+					isBaseLayer : true
+				});
+				var currentDriveLine_style = new OpenLayers.Style({
+					strokeColor : '#0000FF',
+					strokeWidth : 2
+				});
+				var currentDriveLine_vector_style_map = new OpenLayers.StyleMap({
+					'default' : currentDriveLine_style
+				});
+				currentDriveLine_vector_layer = new OpenLayers.Layer.Vector("DriveLine", {
+					styleMap: currentDriveLine_vector_style_map
+				});
+
+				map.addLayer(wmsLayer);
+				map.addLayer(base_vector_layer);
+				map.addLayer(position_vector_layer);
+				map.addLayer(line_grid_layer);
+				map.addLayer(currentDriveLine_vector_layer);
+				map.addLayer(compass_vector_layer);
+
+				map.addControl(new OpenLayers.Control.LayerSwitcher());
+				// map.addControl(new OpenLayers.Control.EditingToolBar(vectors));
+				map.zoomToMaxExtent();
+			}
+
+			init();
+			// ------------------------------------------------------------------------------------------
+			mapControls = {
+				line : new OpenLayers.Control.Measure(OpenLayers.Handler.Path, {
+					persist : true,
+					setImmediate : true,
+					geodesic : true
+				}),
+				polygon : new OpenLayers.Control.Measure(OpenLayers.Handler.Polygon, {
+					persist : true,
+					setImmediate : true,
+					geodesic : true
+				}),
+				zoomin : new OpenLayers.Control.ZoomBox({
+					title : "Zoom in box",
+					out : false
+				}),
+				zoomout : new OpenLayers.Control.ZoomBox({
+					title : "Zoom out box",
+					out : true
+				})
+			};
+			var control;
+			for(var key in mapControls) {
+				control = mapControls[key];
+				control.events.on({
+					"measure" : handleMeasurements,
+					"measurepartial" : handleMeasurements
+				});
+				map.addControl(control);
+			}
+
+			function handleMeasurements(event) {
+				var geometry = event.geometry;
+				var units = event.units;
+				var order = event.order;
+				var measure = event.measure;
+				var element = document.getElementById('output');
+				//TODO redirect to other area?
+				var out = "";
+				if(order == 1) {
+					out += measure.toFixed(5) + " " + units;
+				} else {
+					out += measure.toFixed(5) + " " + units + " <sup>2</sup>";
+				}
+				element.innerHTML = out;
+			}
+
+			function toggleControl(element) {
+				for(key in mapControls) {
+					var control = mapControls[key];
+					//alert ($(element).is('.ui-state-active'));
+					if(element.name == key && $(element).is('.ui-state-active')) {
+						control.activate();
+					} else {
+						control.deactivate();
+					}
+				}
+			}
+
+			$(function() {
+				$(function() {
+					//all hover and click logic for buttons
+					$(".fg-button:not(.ui-state-disabled)").hover(function() {
+						$(this).addClass("ui-state-hover");
+					}, function() {
+						$(this).removeClass("ui-state-hover");
+					}).mousedown(function() {
+						if($(this).is("#center") & !$(this).is('.ui-state-active')) {
+							$(this).addClass("ui-state-active");
+							setCenter = true;
+						} else if($(this).is("#startAutoSteer") & !$(this).is('.ui-state-active')) {
+							$(this).addClass("ui-state-active");
+							controlSocket.emit("startAutoSteer",{startAutoSteer:true});
+							startAutoSteer = true;
+						} else if($(this).is('#center') & $(this).is('.ui-state-active')) {
+							$(this).removeClass("ui-state-active");
+							setCenter = false;
+						} else if($(this).is('#startAutoSteer') & $(this).is('.ui-state-active')) {
+							$(this).removeClass("ui-state-active");
+							controlSocket.emit("startAutoSteer",{startAutoSteer:false});
+							startAutoSteer = false;
+						} else {
+							// hier selektiert er alle buttons die aktiv sind und removed die aktiv-class
+							// mit :not(#center).fg.... lässt er beim find den center-button aus
+							// wichtig ist beim not dass das direkt an die nächste class anschließt sunst funktionierts nicht!!!!!
+							$(this).parents('.fg-buttonset-single:first').find(":not(#center).fg-button.ui-state-active").removeClass("ui-state-active");
+							if($(this).is('.ui-state-active.fg-button-toggleable, .fg-buttonset-multi .ui-state-active')) {
+								$(this).removeClass("ui-state-active");
+							} else {
+								$(this).addClass("ui-state-active");
+							}
+						}
+					}).mouseup(function() {
+						if(!$(this).is('.fg-button-toggleable, .fg-buttonset-single .fg-button, .fg-buttonset-multi .fg-button')) {
+							$(this).removeClass("ui-state-active");
+						}
+						//TODO use this else only for measure/pan toggle.
+						else {
+							toggleControl(this);
+						}
+					});
+				});
+			});
+			// ------------------------------------------------------------------------------------------
+			var realpoint = null;
+			var antennaHeight =2.9; // in m
+
+
+			var compassLine = new OpenLayers.Geometry.LineString([new OpenLayers.Geometry.Point(0,0),new OpenLayers.Geometry.Point(0,40)]);
+			compass_vector_layer.addFeatures([new OpenLayers.Feature.Vector(compassLine)]);
+
+
+			var currentPositionLineString = new OpenLayers.Geometry.LineString();
+			position_vector_layer.addFeatures([new OpenLayers.Feature.Vector(currentPositionLineString)]);
+			var infoSocket = io.connect('http://'+HOST+':8081');
+
+			// var infoSocket = io.connect('http://localhost:8081');
+			infoSocket.on('gpsPosition', function(data) {
+
+				$('#lat').html("Lat: " + data.lat);
+				$('#lon').html("Lon: " + data.lon);
+				$('#sat').html("Sateliten: " + data.numSat);
+				// console.log(data.numSat);
+				switch (data.status) {
+					case "1":
+						$('#status').html("Status: <span>fix</span>").addClass('green');
+						$('#status').removeClass('red');
+						$('#status').removeClass('yellow');
+						break;
+					case "2":
+						$('#status').html("Status: <span>float</span>").addClass('yellow');
+						$('#status').removeClass('red');
+						$('#status').removeClass('green');
+						break;
+					case "5":
+						$('#status').html("Status: <span>single</span>").addClass('red');
+						$('#status').removeClass('green');
+						$('#status').removeClass('yellow');
+						break;
+					default:
+						$('#status').html("Status: <span>kein Status</span>");
+						break;
+				}
+
+				var newpoint = new OpenLayers.Geometry.Point(data.lon, data.lat).transform(new OpenLayers.Projection('EPSG:4326'), new OpenLayers.Projection('EPSG:31287')); //.transform(new OpenLayers.Projection('EPSG:4326'), new OpenLayers.Projection('EPSG:4326'));
+			// var angle_compass = null;
+			// var pitch_compass = null;
+			// var roll_compass = null;
+				x_tilt = data.x_tilt;
+				y_tilt = data.y_tilt;
+
+				realpoint = getRealCoords(newpoint, data.x_tilt, data.y_tilt, antennaHeight, data.angle_compass);
+				// console.log(data.angle_compass);
+
+
+
+				currentPositionLineString.addPoint(realpoint);
+				moveCompassLine(compassLine, realpoint, data.angle_compass);
+
+				// console.log(compassLine.getCentroid(true).move(realpoint));
+				// ------------------------------------------------------------------------
+				// ------------------------------------------------------------------------
+				// var pointSide = getDirection(line_grid_layer.getPoint_left(), line_grid_layer.getPoint_right(), realpoint);
+				var pointSide = getDirection(help_point_left, help_point_right, realpoint);
+				// console.log(help_point_right);
+
+				$('#steer').html(pointSide);
+				if(startAutoSteer) {
+					infoSocket.emit("pointSide", {
+						pointSide : pointSide
+					});
+				}
+				// ------------------------------------------------------------------------
+				// ------------------------------------------------------------------------
+				if(currentPositionLineString.components.length >= 100)
+					currentPositionLineString.removePoint(currentPositionLineString.components[0]);
+
+				var point_color = '';
+				switch (data.status) {
+					case "1":
+						point_color = "#00FF00";
+						break;
+					case "2":
+						point_color = "#FFFF00";
+						break;
+					case "5":
+						point_color = "#FF0000";
+						break;
+					default:
+						point_color = "#000000";
+						break;
+				}
+				// position_vector_layer.addFeatures(new OpenLayers.Feature.Vector(realpoint, {
+				// 	statusFillcolor : point_color,
+				// 	statusStrokeColor : point_color //färbelt die Punkte nach Status ein
+				// }));
+				position_vector_layer.redraw();
+				driveLineLayer.redraw();
+				compass_vector_layer.redraw();
+				// 	// console.log(realpoint);
+				// 	// if (linePath.components.length >= 10) linePath.components.shift();
+				// 	// linePath.addPoint(realpoint);
+				// 	// vector_layer.redraw();
+				if(initCenter || setCenter) {
+					centerPoint = new OpenLayers.LonLat(realpoint.x, realpoint.y);
+					var zoomLevel = map.getZoom();
+					if(initCenter)
+						zoomLevel = 5;
+					map.setCenter(centerPoint, zoomLevel);
+					//neuen mittelpunkt setzen
+					initCenter = false;
+				}
+			});
+			function getRealCoords(originPoint, x_tilt, y_tilt, antennaHeight,compass_angle){
+				var x_dist = calcAngleDist(x_tilt+xGyroReset, antennaHeight);
+				var y_dist = calcAngleDist(y_tilt+yGyroReset, antennaHeight);
+				var destPoint = originPoint.clone(); 
+				// console.log("x_tilt: "+x_tilt+" xdist: "+x_dist);
+				destPoint.move(x_dist, y_dist);
+
+				destPoint.rotate(360-compass_angle, originPoint);
+
+
+				return destPoint
+			}
+
+			function calcAngleDist(angle, height){
+				return (Math.sin(angle*(Math.PI/180))*height); //Math.sin in JS ist in Radian deshalb die Formel mit Math.PI/180 multiplizieren!!!!
+			}
+
+
+
+			var controlSocket = io.connect('http://'+HOST+':8082');
+			// var controlSocket = io.connect('http://localhost:8082');
+
+			// ------------------------------------------------------------------------
+
+			$(function() {
+				$("#sliderRotation").slider({
+					min : -90,
+					max : 90,
+					value : 0,
+					step : 5,
+					slide : function(event, ui) {
+						line_grid_layer.setRotation($("#sliderRotation").slider("value") * (-1));
+					}
+				});
+
+			});
+			$("#sliderSteerSpeedVal").html("0.5");
+			$(function() {
+				$("#sliderSteerSpeed").slider({
+					min : 0,
+					max : 2100,
+					value : 500,
+					step : 100,
+					// orientation: 'vertical',
+					slide : function(event, ui) {
+						$("#sliderSteerSpeedVal").html($("#sliderSteerSpeed").slider("value")/1000);
+						controlSocket.emit("relaisSpeed",{relaisspeed:$("#sliderSteerSpeed").slider("value")});
+					}
+				});
+
+			});
+			$("#sliderHydroDurationVal").html("0.2");
+			$(function() {
+				$("#sliderHydroDuration").slider({
+					min : 0,
+					max : 2100,
+					value : 200,
+					step : 100,
+					// orientation: 'vertical',
+					slide : function(event, ui) {
+						$("#sliderHydroDurationVal").html($("#sliderHydroDuration").slider("value")/1000);
+						controlSocket.emit("hydroDuration",{hydroduration:$("#sliderHydroDuration").slider("value")});
+					}
+				});
+
+			});
+			$("#sliderMiddleVal").html('25');
+			$(function() {
+				$("#sliderMiddle").slider({
+					min : 0,
+					max : 200,
+					value : 25,
+					step : 1,
+					// orientation: 'vertical',
+					slide : function(event, ui) {
+						$("#sliderMiddleVal").html($("#sliderMiddle").slider("value"));
+						steerSave = $("#sliderMiddle").slider("value");
+						// console.log("SS: "+steerSave);
+					}
+				});
+
+			});
+			$("#sliderOutVal").html('300');
+			$(function() {
+				$("#sliderOut").slider({
+					min : 0,
+					max : 1000,
+					value : 300,
+					step : 10,
+					// orientation: 'vertical',
+					slide : function(event, ui) {
+						$("#sliderOutVal").html($("#sliderOut").slider("value"));
+						steerSaveOut = $("#sliderOut").slider("value");
+						// console.log("SS: "+steerSave);
+					}
+				});
+
+			});
+
+			function getDirection(helperPointLeft, helperPointRight, actualPoint) {
+
+				if(helperPointLeft == null || helperPointRight == null) {
+					return "keine Linie gesetzt";
+				} else {
+
+					// console.log("helperPointLeft: "+helperPointLeft);
+					// console.log("helperPointRight: "+helperPointRight);
+					// console.log("actualPoint: "+actualPoint);
+					// var mapUnits = map.getUnits();
+					// var mmPerUnit = OpenLayers.INCHES_PER_UNIT['mm'];
+					// var inchPerMapUnit = OpenLayers.INCHES_PER_UNIT[mapUnits];
+
+					var distLeft = actualPoint.distanceTo(helperPointLeft);
+					var distRight = actualPoint.distanceTo(helperPointRight);
+					var diff = (distLeft - distRight)*1000;
+					// console.log('diff: '+diff);
+//--------------------------------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------------------------
+					// var proj = "EPSG:4326";
+					// var distLeft = new OpenLayers.Geometry.LineString([helperPointLeft, actualPoint]);
+					// var mmLeft = distLeft.getLength();
+
+					// var distRight = new OpenLayers.Geometry.LineString([helperPointRight, actualPoint]);
+					// var mmRight = distRight.getLength();
+
+					// var diff = (mmLeft - mmRight) * mmPerUnit * inchPerMapUnit;
+
+					// console.log('diff: '+diff);
+
+
+
+//--------------------------------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------------------------
+					// 1 international nautical mile = 1.1508 statute miles= 1.852 kilometers
+					// 1° latitude = 69.047 statute miles = 60 nautical miles= 111.12 kilometers
+
+					// return von distanceTo = cartesian distance of the lat and long values
+					// miles = answer * 60 * 1.1508
+
+
+					// var distLeft = OpenLayers.Util.distVincenty(new OpenLayers.LonLat(actualPoint.x, actualPoint.y),new OpenLayers.LonLat(helperPointLeft.x, helperPointLeft.y));
+					// var distRight = OpenLayers.Util.distVincenty(new OpenLayers.LonLat(actualPoint.x, actualPoint.y),new OpenLayers.LonLat(helperPointRight.x, helperPointRight.y));
+					// var diff = (distLeft - distRight);
+					// console.log("diff:"+diff);
+					$('#distCont').html(Math.round(diff)+"<span>mm</span>");
+
+					if(diff > steerSave || diff < (steerSave * (-1))) {
+
+						if(diff < steerSaveOut || diff > (steerSaveOut * (-1))) {
+							if(distLeft < distRight) {
+								return "left";
+							} else {
+								return "right";
+							}
+						}else return "middle";
+
+					} else {
+						return "middle";
+					}
+				}
+			}
+
+			$('#hydroControl').buttonset();
+			$('#btnSteerSingleLeft').click(function(){
+				controlSocket.emit("steerSingleLeft");
+			});
+			$('#btnSteerSingleRight').click(function(){
+				controlSocket.emit("steerSingleRight");
+			});
+			$('#btnSteerStop').click(function(){
+				controlSocket.emit("singleStop");
+			});
+//-------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------
+			var driveLineLayer = line_grid_layer; // oder position_vector_layer || vectlayer für die Hilfspunkte angeben
+
+			map.addControl(new OpenLayers.Control.MousePosition({
+					div : document.getElementById('mouseCoord'), //zeigt mir die koordinaten des mousepointers an
+					numDigits : 9
+				}));
+			var pointControl = new OpenLayers.Control.DrawFeature(driveLineLayer,
+                                OpenLayers.Handler.Point);
+			var $dialogError = $('<div></div>')
+				.dialog({
+					autoOpen: false,
+					title: 'Fehler'
+				});
+
+			map.addControl(pointControl);
+
+			var endPointFeature = null;
+			var startPointFeature = null;
+			var driveLineFeature = null;
+
+			var help_point_left = null;
+			var help_point_right = null;
+			var hpLFeature = null;
+			var hpRFeature = null;
+			var currentDriveLineString = null;
+
+			$('#line').buttonset();
+			$('#btnClearLine').click(function(){
+				driveLineLayer.destroyFeatures(driveLineLayer.features);
+				help_point_left = null;
+				help_point_right = null;
+				startPointFeature = null;
+				endPointFeature = null;
+				driveLineListRight = [];
+				driveLineListLeft = [];
+				currentDriveLineString = null;
+				hpLFeature = null;
+				hpRFeature = null;
+				currentDriveLineListIndex = 0;
+				originDriveLineString = null
+				currentDriveLine_vector_layer.destroyFeatures();
+				driveLineListSide = "middle";
+				// console.log("Linie gelöscht");
+			});
+			$('#btnLineEndGPS').click(function(){
+				pointControl.activate();
+				clearEndPoint();
+				pointControl.featureAdded=function(data){
+					clearEndPoint();
+					endPointFeature = data;
+					// console.log("endPointAdded");
+					driveLineLayer.addFeatures([endPointFeature]);
+					if(startPointFeature !== null){
+						currentDriveLineString = new OpenLayers.Geometry.LineString([startPointFeature.geometry,endPointFeature.geometry]);
+						setDriveLine(currentDriveLineString);
+					}
+					// this.deactivate();
+				};
+				endPointFeature = new OpenLayers.Feature.Vector(realpoint);
+				driveLineLayer.addFeatures([endPointFeature]);
+				if(startPointFeature !== null){
+					currentDriveLineString = new OpenLayers.Geometry.LineString([startPointFeature.geometry,endPointFeature.geometry]);
+						setDriveLine(currentDriveLineString);
+				}
+				// console.log("endPointAdded");
+				// controlSocket.emit("steerSingleLeft");
+			});
+			function clearEndPoint(){
+				if(endPointFeature!==null){
+					driveLineLayer.destroyFeatures([endPointFeature]);
+				}
+				if (driveLineFeature !== null){
+					driveLineLayer.destroyFeatures([driveLineFeature]);
+				}
+				if (hpLFeature !== null){
+					driveLineLayer.destroyFeatures([hpLFeature]);
+				}
+				if (hpRFeature !== null){
+					driveLineLayer.destroyFeatures([hpRFeature]);
+				}
+			}
+			$('#btnLineStartGPS').click(function(){
+				pointControl.activate();
+				clearStartPoint();
+				pointControl.featureAdded=function(data){
+					clearStartPoint();
+					startPointFeature = data;
+					// console.log("startPointAdded");
+					driveLineLayer.addFeatures([startPointFeature]);
+					if(endPointFeature !== null){
+						currentDriveLineString = new OpenLayers.Geometry.LineString([startPointFeature.geometry,endPointFeature.geometry]);
+						setDriveLine(currentDriveLineString);
+					}
+					// this.deactivate();
+				};
+
+				startPointFeature = new OpenLayers.Feature.Vector(realpoint);
+				driveLineLayer.addFeatures([startPointFeature]);
+				if(endPointFeature !== null){
+					currentDriveLineString = new OpenLayers.Geometry.LineString([startPointFeature.geometry,endPointFeature.geometry]);
+						setDriveLine(currentDriveLineString);
+				}
+				// console.log("startPointAdded");
+			});
+			function clearStartPoint(){
+				if(startPointFeature!==null){
+					driveLineLayer.destroyFeatures([startPointFeature]);
+				}
+				if (driveLineFeature !== null){
+					driveLineLayer.destroyFeatures([driveLineFeature]);
+				}
+				if (hpLFeature !== null){
+					driveLineLayer.destroyFeatures([hpLFeature]);
+				}
+				if (hpRFeature !== null){
+					driveLineLayer.destroyFeatures([hpRFeature]);
+				}
+			}
+
+			$('#btnEnDisBtn').click(function(){
+				pointControl.deactivate();
+				if($('#btnLineStartGPS').button( "option", "disabled")){
+					$('#btnLineStartGPS').button( "option", "disabled",false );
+					$('#btnLineEndGPS').button( "option", "disabled",false );
+					$('#btnClearLine').button( "option", "disabled",false );
+					$('#btnEnDisBtn').html("Punkt OFF");
+				}else{
+					$('#btnLineStartGPS').button( "option", "disabled",true );
+					$('#btnLineEndGPS').button( "option", "disabled",true );
+					$('#btnClearLine').button( "option", "disabled",true );
+					$('#btnEnDisBtn').html("Punkt ON");
+				}
+			});
+
+
+			var origin = null;
+			var angle = null;
+// ------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------
+			var driveLineListRight = [];
+			var driveLineListLeft = [];
+			var currentDriveLineListIndex = 0;
+			var originDriveLineString = null;
+			var driveLineListSide = "middle";
+
+			var readJson = new OpenLayers.Format.GeoJSON();
+			originDriveLineString = readJson.read({"type":"LineString","coordinates":[[588949.8423761509,385370.7013765676],[588861.0743908212,385416.2280332055]]},'Geometry');
+			currentDriveLineString = originDriveLineString.clone();
+
+
+			// driveLineLayer.addFeatures([new OpenLayers.Feature.Vector([currentDriveLineString]);
+			setDriveLine(currentDriveLineString);
+
+
+			$('#btnNextLineRight').click(function() {
+				var linesCountRight = driveLineListRight.length;
+				// console.log("index: "+currentDriveLineListIndex + " side: "+driveLineListSide);
+
+				if (driveLineListSide != 'right'){
+					if((currentDriveLineListIndex) >0){
+						currentDriveLineListIndex = currentDriveLineListIndex-1;
+						setDriveLine(driveLineListLeft[currentDriveLineListIndex]);
+						return;
+					} else if(driveLineListSide !== 'middle') {
+						setDriveLine(originDriveLineString);
+						driveLineListSide = 'middle';
+						return;
+					}
+				}
+
+
+				if (originDriveLineString == null || currentDriveLineListIndex >= linesCountRight-1){
+					if (originDriveLineString == null){
+						originDriveLineString = currentDriveLineString.clone();
+					}
+
+					var spacing = $('#valueSpacing').val()/100;
+					var rightDriveLineString = currentDriveLineString.clone();
+					// rightDriveLineString.components[0].move(spacing*(linesCountRight+1),0);//alte variante bei setDriveLine currentDriveLineString = line ausdokumentieren
+					rightDriveLineString.components[0].move(spacing,0);
+
+					rightDriveLineString.components[0].rotate(360-getAngle(currentDriveLineString),currentDriveLineString.components[0]);
+
+					// rightDriveLineString.components[1].move(spacing*(linesCountRight+1),0);
+					rightDriveLineString.components[1].move(spacing,0);
+
+					rightDriveLineString.components[1].rotate(360-getAngle(currentDriveLineString),currentDriveLineString.components[1]);
+
+					driveLineListRight.push(rightDriveLineString);
+					currentDriveLineListIndex = driveLineListRight.length -1;
+					driveLineLayer.addFeatures([new OpenLayers.Feature.Vector(rightDriveLineString)]);
+					setDriveLine(rightDriveLineString);
+				} else {
+					if (driveLineListSide == 'middle'){
+						setDriveLine(driveLineListRight[currentDriveLineListIndex]);
+					} else {
+						currentDriveLineListIndex++;
+						setDriveLine(driveLineListRight[currentDriveLineListIndex]);
+					}
+				}
+				driveLineListSide = 'right';
+
+
+
+				// console.log("index: "+currentDriveLineListIndex);
+
+
+			});
+
+			$('#btnNextLineLeft').click(function() {
+				var linesCountLeft = driveLineListLeft.length;
+				// console.log("index: "+currentDriveLineListIndex + " side: "+driveLineListSide);
+
+					if (driveLineListSide != 'left'){
+						if((currentDriveLineListIndex) >0){
+							currentDriveLineListIndex = currentDriveLineListIndex-1;
+							setDriveLine(driveLineListRight[currentDriveLineListIndex]);
+							return;
+						} else if(driveLineListSide !== 'middle') {
+							setDriveLine(originDriveLineString);
+							driveLineListSide = 'middle';
+							return;
+						}
+					}
+
+// ------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------
+				if (originDriveLineString == null || currentDriveLineListIndex >= linesCountLeft-1){
+					if (originDriveLineString == null){
+						originDriveLineString = currentDriveLineString.clone();
+					}
+
+					var spacing = $('#valueSpacing').val()/100;
+					var leftDriveLineString = currentDriveLineString.clone();
+					// leftDriveLineString.components[0].move(spacing*((linesCountLeft+1)*-1),0); //alte variante bei setDriveLine currentDriveLineString = line ausdokumentieren
+					leftDriveLineString.components[0].move(spacing*-1,0);
+					leftDriveLineString.components[0].rotate(360-getAngle(currentDriveLineString),currentDriveLineString.components[0]);
+
+					// leftDriveLineString.components[1].move(spacing*((linesCountLeft+1)*-1),0);
+					leftDriveLineString.components[1].move(spacing*-1,0);
+					leftDriveLineString.components[1].rotate(360-getAngle(currentDriveLineString),currentDriveLineString.components[1]);
+
+					driveLineListLeft.push(leftDriveLineString);
+					currentDriveLineListIndex = driveLineListLeft.length -1;
+					driveLineLayer.addFeatures([new OpenLayers.Feature.Vector(leftDriveLineString)]);
+					setDriveLine(leftDriveLineString);
+				} else {
+					if (driveLineListSide == 'middle'){
+						setDriveLine(driveLineListLeft[currentDriveLineListIndex]);
+					} else {
+						currentDriveLineListIndex++;
+						setDriveLine(driveLineListLeft[currentDriveLineListIndex]);
+					}
+				}
+				driveLineListSide = 'left';
+
+
+
+				// console.log("index: "+currentDriveLineListIndex);
+
+
+
+
+			});
+			
+			var x_tilt = null;
+			var y_tilt = null;
+			var xGyroReset = 0;
+			var yGyroReset = 0;
+			$('#btnResetGyro').click(function() {
+				if (x_tilt !== null && y_tilt !==null){
+					xGyroReset = x_tilt;
+					yGyroReset = y_tilt;
+					console.log("xGyroReset: "+ xGyroReset +" yGyroReset: "+yGyroReset);
+				}
+
+
+			});
+
+
+			$('#btnMoveLineRight').click(function() {
+				
+					var moveSpacing = $('#valueMoveSpacing').val()/1000;
+
+					if (actualDriveLine == null){
+						actualDriveLine = originDriveLineString;
+						driveLineLayer.removeFeatures([driveLineLayer.features[0]]);
+					}
+
+					var oldDriveLine = actualDriveLine.clone();
+
+					actualDriveLine.components[0].move(moveSpacing,0);
+					actualDriveLine.components[0].rotate(360-getAngle(oldDriveLine),oldDriveLine.components[0]);
+
+					actualDriveLine.components[1].move(moveSpacing,0)/1000;
+					actualDriveLine.components[1].rotate(360-getAngle(oldDriveLine),oldDriveLine.components[1]);
+
+					
+					setDriveLine(actualDriveLine);
+				});
+			$('#btnMoveLineLeft').click(function() {
+				
+					var moveSpacing = $('#valueMoveSpacing').val()/1000;
+					if (actualDriveLine == null){
+						actualDriveLine = originDriveLineString;
+						driveLineLayer.removeFeatures([driveLineLayer.features[0]]);
+					}
+
+					var oldDriveLine = actualDriveLine.clone();
+
+					actualDriveLine.components[0].move(moveSpacing*-1,0);
+					actualDriveLine.components[0].rotate(360-getAngle(oldDriveLine),oldDriveLine.components[0]);
+
+					actualDriveLine.components[1].move(moveSpacing*-1,0)/1000;
+					actualDriveLine.components[1].rotate(360-getAngle(oldDriveLine),oldDriveLine.components[1]);
+
+					
+					setDriveLine(actualDriveLine);
+				});
+// ------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------
+			var currentDriveLineColor = null;
+			var actualDriveLine = null;
+
+			function setDriveLine(line){
+				actualDriveLine = line;
+				currentDriveLineString = line;
+				driveLineFeature = new OpenLayers.Feature.Vector(line);
+
+				origin = driveLineFeature.geometry.getCentroid(true);
+				angle = 360 - getAngle(driveLineFeature.geometry);
+
+				help_point_left = new OpenLayers.Geometry.Point(origin.x-30, origin.y);
+               	help_point_right = new OpenLayers.Geometry.Point(origin.x+30, origin.y);
+
+               	help_point_left.rotate(angle, origin);
+               	help_point_right.rotate(angle, origin);
+
+               	if(hpLFeature != null || hpRFeature != null){
+               		driveLineLayer.destroyFeatures([hpLFeature,hpRFeature]);
+               	}
+
+               	hpLFeature = new OpenLayers.Feature.Vector(help_point_left);
+               	hpRFeature = new OpenLayers.Feature.Vector(help_point_right);
+
+				driveLineLayer.addFeatures([driveLineFeature,hpLFeature, hpRFeature]);
+				driveLineLayer.redraw();
+
+				//aktuelle Linie in anderer Farbe
+				currentDriveLineColor = driveLineFeature.clone();
+				currentDriveLine_vector_layer.destroyFeatures();
+				currentDriveLine_vector_layer.addFeatures([currentDriveLineColor]);
+				currentDriveLine_vector_layer.redraw();
+
+			}
+			function getAngle(lineString) {
+
+				// console.log(lineString);
+				sPoint = lineString.components[0];
+				ePoint = lineString.components[1];
+
+				a_x = ePoint.x - sPoint.x;
+				a_y = ePoint.y - sPoint.y
+				b_x = 0;
+				b_y = 1;
+
+				// a_x = seg.x2 - seg.x1;
+				// a_y = seg.y2 - seg.y1;
+				var angle_rad = Math.acos((a_x*b_x+a_y*b_y)/Math.sqrt(a_x*a_x+a_y*a_y)) ;
+				var angle = 360/(2*Math.PI)*angle_rad;
+				if (a_x < 0) {
+				    return 360 - angle;
+				} else {
+				    return angle;
+				}
+			}
+			var compassLineLength = 0;
+			function moveCompassLine(line, destPoint, angle){
+				if(compassLineLength == 0){
+					compassLineLength = line.getLength();
+				}
+				movePoint(line.components[0], destPoint,-compassLineLength);
+				movePoint(line.components[1], destPoint, compassLineLength);
+
+				line.rotate(360-angle, line.getCentroid(true));
+
+			}
+
+			function movePoint(sourcePoint, destPoint, length) { 
+				sourcePoint.x = destPoint.x; 
+				sourcePoint.y = destPoint.y+length; 
+				sourcePoint.clearBounds(); }
+
+
+			function printGeoJSON (){
+				var writer = new OpenLayers.Format.GeoJSON();
+
+				console.log("------------------------------------------------");
+
+				console.log("origin:\n"+writer.write(originDriveLineString));
+
+				console.log("listRight:");
+				driveLineListRight.forEach(function(el, ind, array){
+					console.log("["+ind+"]="+writer.write(el));
+				});
+
+				console.log("listLeft:");
+				driveLineListLeft.forEach(function(el, ind, array){
+					console.log("["+ind+"]="+writer.write(el));
+				});
+
+				console.log("------------------------------------------------");
+
+
+			}
+		</script>
+	</body>
+</html>

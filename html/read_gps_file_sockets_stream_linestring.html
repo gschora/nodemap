@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<!-- Always force latest IE rendering engine (even in intranet) & Chrome Frame
+		Remove this if you use the .htaccess -->
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+		<title>read gps file sockets stream linestring</title>
+		<meta name="description" content="" />
+		<meta name="author" content="Hannes" />
+		<meta name="viewport" content="width=device-width; initial-scale=1.0" />
+		<!-- Replace favicon.ico & apple-touch-icon.png in the root of your domain and delete these references -->
+		<link rel="shortcut icon" href="/favicon.ico" />
+		<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+		<!-- 	jquery ui zeugs	 -->
+		<link rel="stylesheet" href="./css/dark-hive/jquery-ui-1.8.17.custom.css" />
+		<link type="text/css" href="./js/jquery.fancybox.css" rel="stylesheet" media="screen" />
+		<script type="text/javascript" src="./js/jquery-1.7.1.min.js"></script>
+		<!-- 		<script type="text/javascript" src="./js/jquery.fancybox.pack.js"></script>
+		<script type="text/javascript" src="./js/jquery.easing.1.3.js"></script> -->
+		<!-- ####################################### -->
+		<script type="text/javascript" src="proj4js.js"></script>
+		<script type="text/javascript" src="/OpenLayers.js"></script>
+		<script src="/socket.io/socket.io.js"></script>
+	</head>
+	<body>
+		<div id="header" class="ui-widget-header ui-corner-top">
+			<div id="mapcontrols" class="fg-buttonset fg-buttonset-single ui-helper-clearfix">
+				<button name='navigate'class="fg-button ui-state-default ui-state-active ui-priority-primary ui-corner-left" >
+					Navigieren
+				</button>
+				<button name='line' class="fg-button ui-state-default ui-priority-primary">
+					Strecke messen
+				</button>
+				<button name='polygon' class="fg-button ui-state-default ui-priority-primary">
+					Fläche messen
+				</button>
+				<button id='path' class="fg-button ui-state-default ui-priority-primary">
+					Pfad starten
+				</button>
+				<!-- 			<a href="#" name='zoomin' class="fg-button ui-state-default fg-button-icon-solo" title="Zoom in"><span class="ui-icon ui-icon-circle-zoomin"></span> Zoom in</a>
+				<a href="#" name='zoomout' class="fg-button ui-state-default fg-button-icon-solo ui-corner-right" title="Zoom out"><span class="ui-icon ui-icon-circle-zoomout"></span> Zoom out</a> -->
+			</div>
+		</div>
+		<div id="content" class="ui-widget-content ui-corner-bottom">
+			<div id="map" style="width: 300; height: 1000px"></div>
+			<div id="coords"></div>
+			<div id="mouseCoord"></div>
+			<div id="output"></div>
+		</div>
+		<script type="text/javascript">
+			var map;
+			var wmsLayer;
+			var point2home;
+			var newpoint;
+			var vector_style_map;
+			var initMap = true;
+			// OpenLayers.Util.DEFAULT=0;
+
+			var map_controls = [new OpenLayers.Control.MouseToolbar() //brauche ich damit ich per doppelklick zoomen kann
+			];
+
+			// function init() {
+
+			// ###########################################################################################
+			// ############             per mapproxy direkt auf wms
+			// ############             starten mit  mapproxy-util serve-develop mymapproxyconfig.yaml -b 0.0.0.0:8080
+			// ############        47.341753, 15.835170
+			// ###########################################################################################
+
+			map = new OpenLayers.Map("map", {
+				controls : map_controls,
+				projection : new OpenLayers.Projection('EPSG:31287'), //notwendig sonst wird die map nicht angezeigt
+				maxExtent : new OpenLayers.Bounds(1, 1, 1000000, 700000), //notwendig sonst wird map nicht angezeigt, jedoch nicht sicher was die werte sind
+				displayProjection : new OpenLayers.Projection("EPSG:4326"), //brauche ich damit bei da MousePositionControll die Koordinaten in GPS-Forma angezeigt werden!!!
+				maxResolution : 'auto' //brauche ich weil sonst nicht rausgezoomt wird beim start
+			});
+			wmsLayer = new OpenLayers.Layer.WMS("MapProxy", "http://192.168.1.112:8080/service", {
+				layers : 'ortho',
+				format : 'image/jpeg' //jpeg besser für rasterdaten
+			}, {
+				singleTile : true,
+				buffer : 20,
+				ratio : 1
+			});
+			
+			// ####################################################
+			// layer wird geladen
+			// wmsLayer.events.register('loadend', wmsLayer, function(){
+				// $('#path').removeClass('ui-state-disabled');
+			// });
+// 			
+			
+			
+			
+
+			map.addControl(new OpenLayers.Control.MousePosition({
+				div : document.getElementById('mouseCoord'), //zeigt mir die koordinaten des mousepointers an
+				numDigits : 14
+			}));
+			// zeigt mir die x-y koordinaten der maus an
+			map.events.register("mousemove", map, function(e) {
+				var position = this.events.getMousePosition(e);
+				OpenLayers.Util.getElement("coords").innerHTML = position;
+			});
+			// Vektorlayer und toolbar mit den zeichenwerkzeugen
+			var vector_layer = new OpenLayers.Layer.Vector('vectorLayer', {
+				renderers : ['Canvas', 'SVG', 'VML']
+
+			});
+			// map.addControl(new OpenLayers.Control.EditingToolbar(vector_layer));
+
+			// die Farbe der Punkte beim zeichnen auf rot setzen und nur 1px gross machen...
+			var vector_style = new OpenLayers.Style({
+				fillColor : '#FF8000',
+				fillOpacity : 0.4,
+				strokeColor : '#FF0000',
+				strokeWidth : 1,
+				pointRadius : 1
+			});
+			vector_style_map = new OpenLayers.StyleMap({
+				'default' : vector_style
+			});
+			vector_layer.styleMap = vector_style_map;
+
+			// 				messwerkzeuge ###################################################################################
+			// allow testing of specific renderers via "?renderer=Canvas", etc
+			// var renderer = OpenLayers.Util.getParameters(window.location.href).renderer;
+			// renderer = (renderer) ? [renderer] : OpenLayers.Layer.Vector.prototype.renderers;
+			mapControls = {
+				line : new OpenLayers.Control.Measure(OpenLayers.Handler.Path, {
+					persist : true,
+					setImmediate : true,
+					geodesic : true
+				}),
+				polygon : new OpenLayers.Control.Measure(OpenLayers.Handler.Polygon, {
+					persist : true,
+					setImmediate : true,
+					geodesic : true
+				}),
+				zoomin : new OpenLayers.Control.ZoomBox({
+					title : "Zoom in box",
+					out : false
+				}),
+				zoomout : new OpenLayers.Control.ZoomBox({
+					title : "Zoom out box",
+					out : true
+				})
+			};
+
+			var control;
+			for(var key in mapControls) {
+				control = mapControls[key];
+				control.events.on({
+					"measure" : handleMeasurements,
+					"measurepartial" : handleMeasurements
+				});
+				map.addControl(control);
+			}
+
+			map.addLayer(wmsLayer);
+
+			map.addLayer(vector_layer);
+			map.zoomToMaxExtent();
+			wmsLayer.events.register('loadend', this, function() {
+				if(initMap) {
+					// GROßES Problem mit transformation von punkten von einer Projektion in die andere: anscheinend muss die seite fertiggeladen sein damit das funktioniert
+					// weil wenn ich dass gleich oben mache bei der init() funktion, dann funktionierts nicht!
+					var newpoint = new OpenLayers.Geometry.Point(15.83540740866592, 47.34154140332728).transform(new OpenLayers.Projection('EPSG:4326'), new OpenLayers.Projection('EPSG:31287'));
+					var newFeaturePoint = new OpenLayers.Feature.Vector(newpoint);
+					map.layers[1].addFeatures([newFeaturePoint]);
+					var centerPoint = new OpenLayers.LonLat(newpoint.x, newpoint.y);
+					// map.setCenter(centerPoint, 7);
+					initMap = false;
+				}
+			});
+			// ###########################################################################################################
+			// ###########################################################################################################
+			// ###########################################################################################################
+
+			function handleMeasurements(event) {
+				var geometry = event.geometry;
+				var units = event.units;
+				var order = event.order;
+				var measure = event.measure;
+				var element = document.getElementById('output');
+				//TODO redirect to other area?
+				var out = "";
+				if(order == 1) {
+					out += measure.toFixed(3) + " " + units;
+				} else {
+					out += measure.toFixed(3) + " " + units + "<sup>2</" + "sup>";
+				}
+				element.innerHTML = out;
+			}
+
+			var pathStart = false;
+			var socket;
+			function readSocket() {
+									console.log('socket on');
+				socket = io.connect('http://192.168.1.200');
+				socket.socket.reconnect(); // brauche ich damit die connection beim button wieder aufgebaut wird und weitergezeichnet wird!!!
+				pathStart = true;
+				socket.on('gpsPosition', function(data) {
+					if(data.lon != "" || data.lat != "") { //schaun ob alle lat lon koordinaten da sind
+						var newpoint = new OpenLayers.Geometry.Point(data.lon, data.lat).transform(new OpenLayers.Projection('EPSG:4326'), new OpenLayers.Projection('EPSG:31287'));
+						linePath.addPoint(newpoint); //punkt dem linepath hinzufügen
+						var centerPoint = new OpenLayers.LonLat(newpoint.x, newpoint.y);
+						map.setCenter(centerPoint, 13); //neuen mittelpunkt setzen
+						
+					}
+				});
+			}
+			// schließt mir die socket verbindung beim klick
+			function closeSocket(){
+				socket.socket.disconnectSync();
+				pathStart = false;
+				console.log('socket off');
+			}
+
+// aktiviert die kontrols beim klick auf den button navi, draw line, draw area
+			function toggleControl(element) {
+				for(key in mapControls) {
+					var control = mapControls[key];
+					//alert ($(element).is('.ui-state-active'));
+					if(element.name == key && $(element).is('.ui-state-active')) {
+						control.activate();
+					} else {
+						control.deactivate();
+
+					}
+				}
+			}
+
+			$(function() {
+				//all hover and click logic for buttons
+				$(".fg-button:not(.ui-state-disabled)").hover(function() {
+					$(this).addClass("ui-state-hover");
+				}, function() {
+					$(this).removeClass("ui-state-hover");
+				}).mousedown(function() {
+
+					if($(this).is('#path')) { //wenns der path button ist, dann 
+						if(!pathStart){
+							readSocket();
+						}else{
+							closeSocket();
+						}
+					} else {
+
+						$(this).parents('.fg-buttonset-single:first').find(".fg-button.ui-state-active").removeClass("ui-state-active");
+						if($(this).is('.ui-state-active.fg-button-toggleable, .fg-buttonset-multi .ui-state-active')) {
+							$(this).removeClass("ui-state-active");
+						} else {
+							$(this).addClass("ui-state-active");
+						}
+					}
+				}).mouseup(function() {
+					if(!$(this).is('.fg-button-toggleable, .fg-buttonset-single .fg-button, .fg-buttonset-multi .fg-button')) {
+						$(this).removeClass("ui-state-active");
+					}
+					//TODO use this else only for measure/pan toggle.
+					else {
+						toggleControl(this);
+					}
+				});
+			});
+			var linePath = new OpenLayers.Geometry.LineString();
+			map.layers[1].addFeatures(new OpenLayers.Feature.Vector(linePath));
+			// ############################################################################
+			// socket aufbauen zu node der die gps-koordinaten holt
+			// var socket = io.connect('http://192.168.1.200');
+
+			// ###################################################################################
+			// $('#path').addClass('ui-state-disabled');
+		</script>
+	</body>
+</html>
