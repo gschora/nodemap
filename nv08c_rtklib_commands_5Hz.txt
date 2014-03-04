@@ -1,0 +1,19 @@
+zur erklärung:
+d7 ... ist das kommando: setting of additional operating parameters page 37
+02 ... Data Type = 2 ... gibt die stelle des unterkommandos an
+05 ... 5hz ... ist der wert auf dens gesetzt werden soll
+
+
+!NVS CFG-BINR d7 02 05	//set datarate to 5hz (05)
+!WAIT 100
+!NVS CFG-BINR d7 03 05 //pseudo range smoothing interval
+!WAIT 2000
+!NVS CFG-BINR a0 03 01 // request for result of group delay calibration
+!WAIT 100
+!NVS CFG-BINR d5 01	//request for bit information transmitted by satellites: Request for E5h message output
+!WAIT 100
+!NVS CFG-BINR f4 02 //Request for Raw Data Output: alle 200ms (2*100ms)
+
+
+@
+!NVS CFG-BINR 0e //cancellation of all transmission requests
